@@ -36,7 +36,7 @@ unsigned int nTransactionsUpdated = 0;
 
 map<uint256, CBlockIndex*> mapBlockIndex;
 uint256 hashGenesisBlock("0x1b85a63b4c408f93a45a3a8e82ecbd31ecfab97629b759c2811c077c4ceaf888");
-static CBigNum bnProofOfWorkLimit(~uint256(0) >> 20); // Palcoin: starting difficulty is 1 / 2^12
+static CBigNum bnProofOfWorkLimit(~uint256(0) >> 16); // Palcoin: starting difficulty is 1 / 2^12
 CBlockIndex* pindexGenesisBlock = NULL;
 int nBestHeight = -1;
 uint256 nBestChainWork = 0;
@@ -1089,15 +1089,15 @@ int64 static GetBlockValue(int nHeight, int64 nFees)
 {
     int64 nSubsidy = 25 * COIN;
 
-    // Subsidy is cut in half every 840000 blocks, which will occur approximately every 2 years
-    nSubsidy >>= (nHeight / 420000); // Palcoin: 840k blocks in ~2 years
+    // Subsidy is cut in half every 1720000 blocks, which will occur approximately every 4 years
+    nSubsidy >>= (nHeight / 1720000); // Palcoin: 1720000 blocks in ~4 years
 
     return nSubsidy + nFees;
 }
 
-static const int64 nTargetTimespan = 3 * 24 * 60 * 60; // Palcoin: 3 days
-static const int64 nTargetSpacing = 2 * 60; // Palcoin: 2 minutes
-static const int64 nInterval = nTargetTimespan / nTargetSpacing;
+static const int64 nTargetTimespan = 1.5 * 24 * 60 * 60; // Palcoin: 1.5 days
+static const int64 nTargetSpacing = 73; // Palcoin: 73 Seconds
+static const int64 nInterval = nTargetTimespan / nTargetSpacing; // 1775 blocks
 
 //
 // minimum amount of work that could possibly be required nTime after
@@ -1134,6 +1134,10 @@ unsigned int static GetNextWorkRequired(const CBlockIndex* pindexLast, const CBl
 
     // Only change once per interval
     if ((pindexLast->nHeight+1) % nInterval != 0)
+	// Palcoin: allow easy block if chain is stuck
+	if (pblock->nTime > pindexLast->nTime + nTargetSpacing*4)
+	return nProofOfWorkLimit;
+
     {
         // Special difficulty rule for testnet:
         if (fTestNet)
@@ -1170,8 +1174,8 @@ unsigned int static GetNextWorkRequired(const CBlockIndex* pindexLast, const CBl
     // Limit adjustment step
     int64 nActualTimespan = pindexLast->GetBlockTime() - pindexFirst->GetBlockTime();
     printf("  nActualTimespan = %"PRI64d"  before bounds\n", nActualTimespan);
-    if (nActualTimespan < nTargetTimespan/4)
-        nActualTimespan = nTargetTimespan/4;
+    if (nActualTimespan < nTargetTimespan/2)
+        nActualTimespan = nTargetTimespan/2;
     if (nActualTimespan > nTargetTimespan*4)
         nActualTimespan = nTargetTimespan*4;
 
